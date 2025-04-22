@@ -1,0 +1,17 @@
+# Ignore node_modules and environment files globally
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+
+# Ignore build artifacts
+**/dist
+**/.next
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE/editor files
+.vscode/
+.idea/ 

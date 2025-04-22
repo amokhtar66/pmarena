@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --lk-va-bar-width: 72px;
+  --lk-control-bar-height: unset;
+}
+
+.agent-visualizer > .lk-audio-bar {
+  width: 72px;
+}
+
+.lk-agent-control-bar {
+  @apply border-t-0 p-0 h-min mr-4;
+}
+
+.lk-disconnect-button {
+  @apply h-[36px] hover:bg-[#6b221a] hover:text-[white] bg-[#31100c] border-[#6b221a];
+}
+
+/* Auth Styles */
+.auth-container {
+  @apply w-full max-w-md mx-auto p-6 bg-white rounded-lg shadow-md;
+}
+
+.auth-form h2 {
+  @apply text-2xl font-bold mb-6 text-center;
+}
+
+.form-group {
+  @apply mb-4;
+}
+
+.form-group label {
+  @apply block text-sm font-medium mb-1;
+}
+
+.form-group input {
+  @apply w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.auth-form button[type="submit"] {
+  @apply w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 font-medium mt-4;
+}
+
+.auth-toggle button {
+  @apply w-full mt-4 text-sm text-blue-600 hover:text-blue-800 focus:outline-none;
+}
