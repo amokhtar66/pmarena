@@ -12,6 +12,7 @@ import {
   VoiceAssistantControlBar,
   useVoiceAssistant,
   VideoConference,
+  useRoom,
 } from "@livekit/components-react";
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,6 +20,47 @@ import { MediaDeviceFailure, Track } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ConnectionDetails } from "./api/connection-details/route";
+
+// Component to automatically start recording when room is connected
+function AutoRecordingTrigger() {
+  const room = useRoom();
+  const { user } = useAuth();
+  const [hasStartedRecording, setHasStartedRecording] = useState(false);
+  
+  useEffect(() => {
+    if (room && room.state === 'connected' && user && !hasStartedRecording) {
+      // Start recording when room is connected
+      const startRecording = async () => {
+        try {
+          console.log('Triggering recording start...');
+          const response = await fetch('/api/start-recording', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              roomName: room.name,
+              userId: user.id,
+            }),
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to start recording:', await response.text());
+          } else {
+            console.log('Recording started successfully');
+            setHasStartedRecording(true);
+          }
+        } catch (error) {
+          console.error('Error starting recording:', error);
+        }
+      };
+      
+      startRecording();
+    }
+  }, [room, room?.state, room?.name, user, hasStartedRecording]);
+
+  return null;
+}
 
 export default function Page() {
   const { user, profile, signOut, loading } = useAuth();
@@ -112,6 +154,7 @@ export default function Page() {
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
           <SimpleVoiceAssistant onStateChange={setAgentState} />
+          <AutoRecordingTrigger />
         </div>
         <div className="absolute bottom-5 right-5 z-10">
           <DisconnectButton
