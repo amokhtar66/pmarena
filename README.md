@@ -6,3 +6,5 @@ This repository contains the backend and frontend components for the PM Arena ap
 - `/frontend`: Next.js application for the user interface.
 
 Refer to the README files within each subdirectory for specific setup and usage instructions. 
+
+- Now with call recording functionality using LiveKit Egress. 
