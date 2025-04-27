@@ -43,7 +43,11 @@ export async function POST(req: Request) {
     const result = await egressClient.startRoomCompositeEgress(roomName, {
       layout: 'speaker',  // Use speaker layout
       output: {
-        filepath: `recordings/${roomName}/${Date.now()}.mp4`,
+        mp4: {
+          // Use the destinationUrl parameter for cloud storage URL
+          // If no cloud storage configured, LiveKit will store temporarily
+          destinationUrl: `recordings/${roomName}/${Date.now()}.mp4`,
+        },
       },
       // Include the user ID in metadata so we can identify it in webhooks
       metadata: JSON.stringify({ userId }),

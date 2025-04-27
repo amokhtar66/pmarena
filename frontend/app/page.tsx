@@ -12,8 +12,8 @@ import {
   VoiceAssistantControlBar,
   useVoiceAssistant,
   VideoConference,
-  useRoom,
 } from "@livekit/components-react";
+import { useRoom } from "livekit-client";
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure, Track } from "livekit-client";
