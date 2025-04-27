@@ -12,8 +12,8 @@ import {
   VoiceAssistantControlBar,
   useVoiceAssistant,
   VideoConference,
+  useRoomContext,
 } from "@livekit/components-react";
-import { useRoom } from "livekit-client";
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure, Track } from "livekit-client";
@@ -23,7 +23,7 @@ import type { ConnectionDetails } from "./api/connection-details/route";
 
 // Component to automatically start recording when room is connected
 function AutoRecordingTrigger() {
-  const room = useRoom();
+  const room = useRoomContext();
   const { user } = useAuth();
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
   
@@ -80,7 +80,7 @@ function AutoRecordingTrigger() {
 
 // New component for manual testing of recording API
 function RecordingTestButton() {
-  const room = useRoom();
+  const room = useRoomContext();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);

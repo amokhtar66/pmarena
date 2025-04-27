@@ -39,19 +39,18 @@ export async function POST(req: Request) {
       LIVEKIT_API_SECRET
     );
     
-    // Start recording using LiveKit Egress
-    const result = await egressClient.startRoomCompositeEgress(roomName, {
-      layout: 'speaker',  // Use speaker layout
-      output: {
-        mp4: {
-          // Use the destinationUrl parameter for cloud storage URL
-          // If no cloud storage configured, LiveKit will store temporarily
-          destinationUrl: `recordings/${roomName}/${Date.now()}.mp4`,
-        },
+    // Start recording using LiveKit Egress - using simpler format
+    const result = await egressClient.startRoomCompositeEgress(
+      roomName, 
+      {
+        fileType: 'mp4',
+        fileNamePrefix: `recording-${roomName}-${Date.now()}`,
       },
-      // Include the user ID in metadata so we can identify it in webhooks
-      metadata: JSON.stringify({ userId }),
-    });
+      {
+        layout: 'speaker',
+        metadata: JSON.stringify({ userId }),
+      }
+    );
     
     console.log(`Recording started with egressId: ${result.egressId}`);
     
