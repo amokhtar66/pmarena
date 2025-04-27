@@ -27,12 +27,24 @@ function AutoRecordingTrigger() {
   const { user } = useAuth();
   const [hasStartedRecording, setHasStartedRecording] = useState(false);
   
+  // Enhanced debug logging
+  useEffect(() => {
+    console.log('AutoRecordingTrigger component mounted');
+    console.log('Room object:', room ? 'exists' : 'undefined');
+    console.log('Room state:', room?.state);
+    console.log('User object:', user ? 'exists' : 'undefined');
+    console.log('User ID:', user?.id);
+  }, [room, user]);
+  
   useEffect(() => {
     if (room && room.state === 'connected' && user && !hasStartedRecording) {
       // Start recording when room is connected
       const startRecording = async () => {
         try {
           console.log('Triggering recording start...');
+          console.log('Room name:', room.name);
+          console.log('User ID being sent:', user.id);
+          
           const response = await fetch('/api/start-recording', {
             method: 'POST',
             headers: {
@@ -44,8 +56,12 @@ function AutoRecordingTrigger() {
             }),
           });
           
+          const responseData = await response.text();
+          console.log('Recording API response status:', response.status);
+          console.log('Recording API response:', responseData);
+          
           if (!response.ok) {
-            console.error('Failed to start recording:', await response.text());
+            console.error('Failed to start recording:', responseData);
           } else {
             console.log('Recording started successfully');
             setHasStartedRecording(true);
@@ -60,6 +76,77 @@ function AutoRecordingTrigger() {
   }, [room, room?.state, room?.name, user, hasStartedRecording]);
 
   return null;
+}
+
+// New component for manual testing of recording API
+function RecordingTestButton() {
+  const room = useRoom();
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  
+  const startRecordingManually = async (endpoint: string) => {
+    if (!room || !user) {
+      setResult('Error: Room or user not available');
+      return;
+    }
+    
+    setIsLoading(true);
+    setResult(null);
+    
+    try {
+      console.log(`Manual test: Calling ${endpoint}`);
+      const response = await fetch(`/api/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roomName: room.name,
+          userId: user.id,
+        }),
+      });
+      
+      const data = await response.text();
+      console.log('Manual test response status:', response.status);
+      console.log('Manual test response:', data);
+      
+      setResult(`Endpoint: ${endpoint}\nStatus: ${response.status}\nResponse: ${data}`);
+    } catch (error) {
+      console.error('Manual test error:', error);
+      setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (!room || room.state !== 'connected') {
+    return null;
+  }
+  
+  return (
+    <div className="absolute top-5 right-5 z-20 flex flex-col gap-2">
+      <button 
+        onClick={() => startRecordingManually('start-recording')}
+        disabled={isLoading}
+        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      >
+        {isLoading ? 'Testing...' : 'Test Recording API'}
+      </button>
+      <button 
+        onClick={() => startRecordingManually('recording-test')}
+        disabled={isLoading}
+        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+      >
+        {isLoading ? 'Testing...' : 'Test Simple Endpoint'}
+      </button>
+      {result && (
+        <div className="mt-2 p-2 bg-white text-xs border rounded shadow max-w-xs overflow-auto whitespace-pre-wrap">
+          {result}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Page() {
@@ -151,10 +238,16 @@ export default function Page() {
           <VideoConference />
         </div>
         <RoomAudioRenderer />
+        
+        {/* Test Button - Visible */}
+        <RecordingTestButton />
+        
+        {/* Moved outside of hidden div */}
+        <AutoRecordingTrigger />
+        
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
           <SimpleVoiceAssistant onStateChange={setAgentState} />
-          <AutoRecordingTrigger />
         </div>
         <div className="absolute bottom-5 right-5 z-10">
           <DisconnectButton
