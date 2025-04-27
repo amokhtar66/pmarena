@@ -1,4 +1,4 @@
-import { EgressClient } from 'livekit-server-sdk';
+import { EgressClient, EncodedFileType } from 'livekit-server-sdk';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -39,11 +39,11 @@ export async function POST(req: Request) {
       LIVEKIT_API_SECRET
     );
     
-    // Start recording using LiveKit Egress - using simpler format
+    // Using the correct EncodedFileType enum instead of string
     const result = await egressClient.startRoomCompositeEgress(
       roomName, 
       {
-        fileType: 'mp4',
+        fileType: EncodedFileType.MP4,
         fileNamePrefix: `recording-${roomName}-${Date.now()}`,
       },
       {
