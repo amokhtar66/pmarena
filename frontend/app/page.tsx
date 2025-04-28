@@ -253,9 +253,7 @@ export default function Page() {
         <AutoRecordingTrigger />
         
         {/* Add room reference effect */}
-        {useRoomRef(setRoom => {
-          roomRef.current = setRoom;
-        })}
+        {useRoomRef(roomRef)}
         
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
@@ -283,14 +281,14 @@ export default function Page() {
 }
 
 // Room reference effect to store the room instance when connected
-function useRoomRef(setRoomRef: React.Dispatch<React.SetStateAction<Room | null>>) {
+function useRoomRef(roomRef: React.RefObject<Room | null>) {
   const room = useRoomContext();
   
   useEffect(() => {
     if (room) {
-      setRoomRef(room);
+      roomRef.current = room;
     }
-  }, [room, setRoomRef]);
+  }, [room, roomRef]);
   
   return null;
 }
