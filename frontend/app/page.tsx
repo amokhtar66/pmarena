@@ -237,8 +237,8 @@ export default function Page() {
         }}
         className="h-full w-full flex flex-col"
         // Store room reference for agent control
-        onConnected={(room) => {
-          roomRef.current = room;
+        onConnected={() => {
+          // Access the room via useRoomContext in a useEffect
         }}
       >
         <div className="flex-1 w-full h-full">
@@ -251,6 +251,11 @@ export default function Page() {
         
         {/* Moved outside of hidden div */}
         <AutoRecordingTrigger />
+        
+        {/* Add room reference effect */}
+        {useRoomRef(setRoom => {
+          roomRef.current = setRoom;
+        })}
         
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
@@ -275,6 +280,19 @@ export default function Page() {
       </LiveKitRoom>
     </main>
   );
+}
+
+// Room reference effect to store the room instance when connected
+function useRoomRef(setRoomRef: React.Dispatch<React.SetStateAction<Room | null>>) {
+  const room = useRoomContext();
+  
+  useEffect(() => {
+    if (room) {
+      setRoomRef(room);
+    }
+  }, [room, setRoomRef]);
+  
+  return null;
 }
 
 // Agent Control Interface component
