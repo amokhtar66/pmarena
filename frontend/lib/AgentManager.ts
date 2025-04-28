@@ -7,7 +7,7 @@ import { Room } from 'livekit-client';
 // Define interfaces for the agent instance
 interface AgentInstance {
   state: AgentState;
-  roomSid: string;
+  roomName: string;
   active: boolean;
 }
 
@@ -46,14 +46,14 @@ class AgentManager {
     // Create new agent instance
     const agentInstance: AgentInstance = {
       state: 'connecting',
-      roomSid: room.sid,
+      roomName: room.name,
       active: true
     };
     
     // Store the agent reference
     this.activeAgents.set(userId, agentInstance);
     
-    console.log(`Agent started for user: ${userId} in room: ${room.sid}`);
+    console.log(`Agent started for user: ${userId} in room: ${room.name}`);
     return agentInstance;
   }
 
