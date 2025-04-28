@@ -19,7 +19,7 @@ import {
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure, Room, Track } from "livekit-client";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ConnectionDetails } from "./api/connection-details/route";
 
@@ -158,7 +158,6 @@ export default function Page() {
     undefined
   );
   const [agentState, setAgentState] = useState<AgentState>("disconnected");
-  const roomRef = useRef<Room | null>(null);
 
   // Check for URL parameter to clear after navigation
   useEffect(() => {
@@ -236,10 +235,6 @@ export default function Page() {
           updateConnectionDetails(undefined);
         }}
         className="h-full w-full flex flex-col"
-        // Store room reference for agent control
-        onConnected={() => {
-          // Access the room via useRoomContext in a useEffect
-        }}
       >
         <div className="flex-1 w-full h-full">
           <VideoConference />
@@ -252,9 +247,6 @@ export default function Page() {
         {/* Moved outside of hidden div */}
         <AutoRecordingTrigger />
         
-        {/* Add room reference effect */}
-        {useRoomRef(roomRef)}
-        
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
           <SimpleVoiceAssistant onStateChange={setAgentState} />
@@ -262,7 +254,6 @@ export default function Page() {
         
         {/* Agent Control Interface */}
         <AgentControlInterface 
-          room={roomRef.current} 
           userId={user.id} 
           agentState={agentState} 
         />
@@ -280,31 +271,20 @@ export default function Page() {
   );
 }
 
-// Room reference effect to store the room instance when connected
-function useRoomRef(roomRef: React.RefObject<Room | null>) {
-  const room = useRoomContext();
-  
-  useEffect(() => {
-    if (room) {
-      roomRef.current = room;
-    }
-  }, [room, roomRef]);
-  
-  return null;
-}
-
 // Agent Control Interface component
-function AgentControlInterface({ room, userId, agentState }: { 
-  room: Room | null; 
+function AgentControlInterface({ userId, agentState }: { 
   userId: string;
   agentState: AgentState;
 }) {
+  // Get room directly using useRoomContext hook
+  const room = useRoomContext();
+  
   const { 
     agentState: controlledAgentState, 
     startConversation, 
     leaveCall, 
     isAgentActive 
-  } = useAgentControl(room || undefined, userId);
+  } = useAgentControl(room, userId);
 
   return (
     <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 z-10">

@@ -8,11 +8,11 @@ import { agentManager } from './AgentManager';
 
 /**
  * Custom hook to control agent lifecycle
- * @param room - The LiveKit room instance
+ * @param room - The LiveKit room instance from useRoomContext
  * @param userId - The unique identifier for the user
  * @returns Agent control functions and state
  */
-export function useAgentControl(room: Room | undefined, userId: string) {
+export function useAgentControl(room: Room | null, userId: string) {
   const [agentState, setAgentState] = useState<AgentState>('disconnected');
   const { state: voiceAssistantState } = useVoiceAssistant();
 
