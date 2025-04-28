@@ -2,7 +2,9 @@
 
 import { CloseIcon } from "@/components/CloseIcon";
 import { NoAgentNotification } from "@/components/NoAgentNotification";
+import { AgentControlButtons } from "@/components/AgentControlButtons";
 import { useAuth } from "@/lib/AuthContext";
+import { useAgentControl } from "@/lib/useAgentControl";
 import {
   AgentState,
   BarVisualizer,
@@ -16,8 +18,8 @@ import {
 } from "@livekit/components-react";
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
-import { MediaDeviceFailure, Track } from "livekit-client";
-import { useCallback, useEffect, useState } from "react";
+import { MediaDeviceFailure, Room, Track } from "livekit-client";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { ConnectionDetails } from "./api/connection-details/route";
 
@@ -156,6 +158,7 @@ export default function Page() {
     undefined
   );
   const [agentState, setAgentState] = useState<AgentState>("disconnected");
+  const roomRef = useRef<Room | null>(null);
 
   // Check for URL parameter to clear after navigation
   useEffect(() => {
@@ -233,6 +236,10 @@ export default function Page() {
           updateConnectionDetails(undefined);
         }}
         className="h-full w-full flex flex-col"
+        // Store room reference for agent control
+        onConnected={(room) => {
+          roomRef.current = room;
+        }}
       >
         <div className="flex-1 w-full h-full">
           <VideoConference />
@@ -249,6 +256,14 @@ export default function Page() {
         <div className="hidden">
           <SimpleVoiceAssistant onStateChange={setAgentState} />
         </div>
+        
+        {/* Agent Control Interface */}
+        <AgentControlInterface 
+          room={roomRef.current} 
+          userId={user.id} 
+          agentState={agentState} 
+        />
+        
         <div className="absolute bottom-5 right-5 z-10">
           <DisconnectButton
             onClick={() => updateConnectionDetails(undefined)}
@@ -259,6 +274,31 @@ export default function Page() {
         </div>
       </LiveKitRoom>
     </main>
+  );
+}
+
+// Agent Control Interface component
+function AgentControlInterface({ room, userId, agentState }: { 
+  room: Room | null; 
+  userId: string;
+  agentState: AgentState;
+}) {
+  const { 
+    agentState: controlledAgentState, 
+    startConversation, 
+    leaveCall, 
+    isAgentActive 
+  } = useAgentControl(room || undefined, userId);
+
+  return (
+    <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 z-10">
+      <AgentControlButtons
+        agentState={controlledAgentState || agentState}
+        isAgentActive={isAgentActive}
+        onStartConversation={startConversation}
+        onLeaveCall={leaveCall}
+      />
+    </div>
   );
 }
 
@@ -277,20 +317,6 @@ function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => voi
         className="agent-visualizer"
         options={{ minHeight: 24 }}
       />
-    </div>
-  );
-}
-
-// This is no longer needed but kept for reference
-function ControlBar(props: { onConnectButtonClicked: () => void; agentState: AgentState }) {
-  const krisp = useKrispNoiseFilter();
-  useEffect(() => {
-    krisp.setNoiseFilterEnabled(true);
-  }, []);
-
-  return (
-    <div className="hidden">
-      {/* Content hidden but kept for reference */}
     </div>
   );
 }
