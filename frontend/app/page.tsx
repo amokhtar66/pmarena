@@ -23,133 +23,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ConnectionDetails } from "./api/connection-details/route";
 
-// Component to automatically start recording when room is connected
-function AutoRecordingTrigger() {
-  const room = useRoomContext();
-  const { user } = useAuth();
-  const [hasStartedRecording, setHasStartedRecording] = useState(false);
-  
-  // Enhanced debug logging
-  useEffect(() => {
-    console.log('AutoRecordingTrigger component mounted');
-    console.log('Room object:', room ? 'exists' : 'undefined');
-    console.log('Room state:', room?.state);
-    console.log('User object:', user ? 'exists' : 'undefined');
-    console.log('User ID:', user?.id);
-  }, [room, user]);
-  
-  useEffect(() => {
-    if (room && room.state === 'connected' && user && !hasStartedRecording) {
-      // Start recording when room is connected
-      const startRecording = async () => {
-        try {
-          console.log('Triggering recording start...');
-          console.log('Room name:', room.name);
-          console.log('User ID being sent:', user.id);
-          
-          const response = await fetch('/api/start-recording', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              roomName: room.name,
-              userId: user.id,
-            }),
-          });
-          
-          const responseData = await response.text();
-          console.log('Recording API response status:', response.status);
-          console.log('Recording API response:', responseData);
-          
-          if (!response.ok) {
-            console.error('Failed to start recording:', responseData);
-          } else {
-            console.log('Recording started successfully');
-            setHasStartedRecording(true);
-          }
-        } catch (error) {
-          console.error('Error starting recording:', error);
-        }
-      };
-      
-      startRecording();
-    }
-  }, [room, room?.state, room?.name, user, hasStartedRecording]);
-
-  return null;
-}
-
-// New component for manual testing of recording API
-function RecordingTestButton() {
-  const room = useRoomContext();
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  
-  const startRecordingManually = async (endpoint: string) => {
-    if (!room || !user) {
-      setResult('Error: Room or user not available');
-      return;
-    }
-    
-    setIsLoading(true);
-    setResult(null);
-    
-    try {
-      console.log(`Manual test: Calling ${endpoint}`);
-      const response = await fetch(`/api/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          roomName: room.name,
-          userId: user.id,
-        }),
-      });
-      
-      const data = await response.text();
-      console.log('Manual test response status:', response.status);
-      console.log('Manual test response:', data);
-      
-      setResult(`Endpoint: ${endpoint}\nStatus: ${response.status}\nResponse: ${data}`);
-    } catch (error) {
-      console.error('Manual test error:', error);
-      setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  if (!room || room.state !== 'connected') {
-    return null;
-  }
-  
-  return (
-    <div className="absolute top-5 right-5 z-20 flex flex-col gap-2">
-      <button 
-        onClick={() => startRecordingManually('start-recording')}
-        disabled={isLoading}
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-      >
-        {isLoading ? 'Testing...' : 'Test Recording API'}
-      </button>
-      <button 
-        onClick={() => startRecordingManually('recording-test')}
-        disabled={isLoading}
-        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-      >
-        {isLoading ? 'Testing...' : 'Test Simple Endpoint'}
-      </button>
-      {result && (
-        <div className="mt-2 p-2 bg-white text-xs border rounded shadow max-w-xs overflow-auto whitespace-pre-wrap">
-          {result}
-        </div>
-      )}
-    </div>
-  );
-}
+// Recording functionality removed as it will be handled by the backend
 
 export default function Page() {
   const { user, profile, signOut, loading } = useAuth();
@@ -241,82 +115,93 @@ export default function Page() {
         </div>
         <RoomAudioRenderer />
         
-        {/* Test Button - Visible */}
-        <RecordingTestButton />
+        {/* Recording buttons removed - will be handled by backend */}
         
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
           <SimpleVoiceAssistant onStateChange={setAgentState} />
         </div>
         
-        {/* Agent Control Interface */}
-        <AgentControlInterface 
-          userId={user.id} 
-          agentState={agentState} 
-        />
+        <div className="fixed top-0 left-0 right-0 flex justify-between items-center bg-black/75 p-2 rounded-b-md">
+          <div className="flex items-center">
+            <div className="ml-2 text-white font-medium max-w-xs truncate">
+              {profile?.display_name || user?.email}
+            </div>
+          </div>
+          <div className="flex items-center">
+            <DisconnectButton className="ml-4" onClick={() => updateConnectionDetails(undefined)}>
+              <CloseIcon />
+            </DisconnectButton>
+          </div>
+        </div>
         
-        <div className="absolute bottom-5 right-5 z-10">
-          <DisconnectButton
-            onClick={() => updateConnectionDetails(undefined)}
-            className="bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg"
-          >
-            <CloseIcon />
-          </DisconnectButton>
+        <div className="relative flex gap-2 mx-auto mb-4">
+          <AgentControlInterface userId={user.id} agentState={agentState} />
         </div>
       </LiveKitRoom>
     </main>
   );
 }
 
-// Agent Control Interface component
 function AgentControlInterface({ userId, agentState }: { 
   userId: string;
   agentState: AgentState;
 }) {
-  // Get room directly using useRoomContext hook
-  const room = useRoomContext();
+  const { isAgentActive, startConversation, leaveCall } = useAgentControl();
   
-  const { 
-    agentState: controlledAgentState, 
-    startConversation, 
-    leaveCall, 
-    isAgentActive 
-  } = useAgentControl(room, userId);
-
   return (
-    <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 z-10">
-      <AgentControlButtons
-        agentState={controlledAgentState || agentState}
-        isAgentActive={isAgentActive}
-        onStartConversation={startConversation}
-        onLeaveCall={leaveCall}
-      />
-    </div>
+    <AnimatePresence mode="wait">
+      {!isAgentActive && agentState === "disconnected" && (
+        <motion.div
+          key="noAgentNotification"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.3 }}
+          className="absolute bottom-16 left-1/2 transform -translate-x-1/2"
+        >
+          <NoAgentNotification />
+        </motion.div>
+      )}
+      
+      <motion.div
+        key="agentControlButtons"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <AgentControlButtons
+          agentState={agentState}
+          isAgentActive={isAgentActive}
+          onStartConversation={startConversation}
+          onLeaveCall={leaveCall}
+        />
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
-// Keep these components for state tracking, but they won't be visible
 function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => void }) {
-  const { state, audioTrack } = useVoiceAssistant();
+  const { state } = useVoiceAssistant({
+    serviceUrl: process.env.NEXT_PUBLIC_AGENT_SERVICE_URL,
+  });
+  
   useEffect(() => {
     props.onStateChange(state);
   }, [props, state]);
-  return (
-    <div className="hidden">
-      <BarVisualizer
-        state={state}
-        barCount={5}
-        trackRef={audioTrack}
-        className="agent-visualizer"
-        options={{ minHeight: 24 }}
-      />
-    </div>
-  );
+  
+  return null;
 }
 
 function onDeviceFailure(error?: MediaDeviceFailure) {
-  console.error(error);
-  alert(
-    "Error acquiring camera or microphone permissions. Please make sure you grant the necessary permissions in your browser and reload the tab"
-  );
+  console.error("Device error:", error);
+  
+  let message = "Could not access media devices.";
+  if (error?.kind === "NotAllowedError") {
+    message = "You must allow camera and microphone permissions to join the call.";
+  } else if (error?.kind === "NotFoundError") {
+    message = "No camera or microphone found. Please connect at least one device.";
+  }
+  
+  alert(message);
 }
