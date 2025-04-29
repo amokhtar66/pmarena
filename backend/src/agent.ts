@@ -10,10 +10,12 @@ import {
   multimodal,
 } from '@livekit/agents';
 import * as openai from '@livekit/agents-plugin-openai';
+import { api } from 'livekit-server-sdk';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { createClient } from '@supabase/supabase-js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env');
@@ -25,12 +27,64 @@ dotenv.config({ path: path.join(__dirname, '../.env.local') });
 // Default loading from process.env
 dotenv.config();
 
+// LiveKit environment variables
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Initialize Supabase client with service role for admin operations
+const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
+
 export default defineAgent({
   entry: async (ctx: JobContext) => {
     await ctx.connect();
     console.log('waiting for participant');
     const participant = await ctx.waitForParticipant();
     console.log(`starting assistant example agent for ${participant.identity}`);
+    
+    // Start recording when participant joins
+    if (LIVEKIT_API_KEY && LIVEKIT_API_SECRET && LIVEKIT_URL) {
+      try {
+        console.log(`Starting recording for room: ${ctx.room.name}, user: ${participant.identity}`);
+        
+        // Initialize LiveKit API client
+        const lkapi = new api.LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+        
+        // Start room composite recording
+        const req = new api.RoomCompositeEgressRequest({
+          roomName: ctx.room.name,
+          layout: 'speaker',
+          output: {
+            fileType: api.EncodedFileType.MP4,
+            filepath: `recording-${ctx.room.name}-${Date.now()}.mp4`,
+          }
+        });
+        
+        const result = await lkapi.startRoomCompositeEgress(req);
+        console.log(`Recording started with egressId: ${result.egressId}`);
+        
+        // If we have Supabase admin client, create a record
+        if (supabaseAdmin) {
+          await supabaseAdmin
+            .from('recordings')
+            .insert({
+              room_name: ctx.room.name,
+              egress_id: result.egressId,
+              status: 'processing',
+              started_at: new Date().toISOString(),
+              user_id: participant.identity,
+            });
+        }
+      } catch (error) {
+        console.error('Error starting recording:', error);
+      }
+    } else {
+      console.error('LiveKit credentials not properly configured for recording');
+    }
 
     const model = new openai.realtime.RealtimeModel({
       model: 'gpt-4o-realtime-preview',

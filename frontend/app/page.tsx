@@ -244,9 +244,6 @@ export default function Page() {
         {/* Test Button - Visible */}
         <RecordingTestButton />
         
-        {/* Moved outside of hidden div */}
-        <AutoRecordingTrigger />
-        
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
           <SimpleVoiceAssistant onStateChange={setAgentState} />
