@@ -147,7 +147,8 @@ function AgentControlInterface({ userId, agentState }: {
   userId: string;
   agentState: AgentState;
 }) {
-  const { isAgentActive, startConversation, leaveCall } = useAgentControl();
+  const room = useRoomContext();
+  const { isAgentActive, startConversation, leaveCall } = useAgentControl(room, userId);
   
   return (
     <AnimatePresence mode="wait">
