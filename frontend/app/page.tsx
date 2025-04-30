@@ -161,7 +161,7 @@ function AgentControlInterface({ userId, agentState }: {
           transition={{ duration: 0.3 }}
           className="absolute bottom-16 left-1/2 transform -translate-x-1/2"
         >
-          <NoAgentNotification />
+          <NoAgentNotification state={agentState} />
         </motion.div>
       )}
       
