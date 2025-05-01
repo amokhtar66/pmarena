@@ -131,10 +131,12 @@ export default defineAgent({
       console.error('Recording credentials (LiveKit API or Supabase S3) not properly configured.');
     }
 
-    const model = new openai.realtime.RealtimeModel({
-      model: 'gpt-4o-realtime-preview',
-      voice: 'alloy',
-      instructions: `Voice Assistant Guidelines for Conducting Product Strategy Interviews
+    // --- Agent Logic --- 
+    try {
+      const model = new openai.realtime.RealtimeModel({
+        model: 'gpt-4o-realtime-preview',
+        voice: 'alloy',
+        instructions: `Voice Assistant Guidelines for Conducting Product Strategy Interviews
 
 This is a simulation interview designed to assess the strategic thinking of Product Management candidates.
 
@@ -241,23 +243,42 @@ Do not interrupt the candidate when they pause to think.
 Ask insightful, targeted follow-up questions briefly when opportunities arise.
 
 This approach allows adaptability and deeper insight into the candidate's strategic abilities and thought process.`,
-    });
+      });
 
-    // Empty function context - removed weather function
-    const fncCtx: llm.FunctionContext = {};
-    
-    const agent = new multimodal.MultimodalAgent({ model, fncCtx });
-    const session = await agent
-      .start(ctx.room, participant)
-      .then((session) => session as openai.realtime.RealtimeSession);
+      // Empty function context - removed weather function
+      const fncCtx: llm.FunctionContext = {};
+      
+      const agent = new multimodal.MultimodalAgent({ model, fncCtx });
+      
+      // Add .catch() for startup errors
+      const session = await agent
+        .start(ctx.room, participant)
+        .then((session) => session as openai.realtime.RealtimeSession)
+        .catch((err) => {
+          console.error("Error starting agent session:", err);
+          throw err; // Re-throw to be caught by outer try-catch
+        });
 
-    session.conversation.item.create(llm.ChatMessage.create({
-      role: llm.ChatRole.ASSISTANT,
-      text: 'Hello, I\'m your interviewer for this product strategy exercise. I\'ll be evaluating your strategic thinking and problem-solving approach. Before we begin, how are you feeling today?',
-    }));
+      // Check if session creation failed
+      if (!session) {
+         console.error("Agent session failed to start.");
+         return; // Exit if session is null/undefined after error
+      }
 
-    session.response.create();
-  },
+      session.conversation.item.create(llm.ChatMessage.create({
+        role: llm.ChatRole.ASSISTANT,
+        text: 'Hello, I\'m your interviewer for this product strategy exercise. I\'ll be evaluating your strategic thinking and problem-solving approach. Before we begin, how are you feeling today?',
+      }));
+
+      session.response.create();
+
+    } catch (error) {
+      console.error("An error occurred in the agent logic:", error);
+      // Optionally, implement cleanup or specific error handling here
+    }
+    // --- End of Agent Logic ---
+
+  }, // End of entry function
 });
 
 cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url) }));
