@@ -34,6 +34,13 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// S3 Upload environment variables (Expected to be set in Railway)
+const SUPABASE_S3_ACCESS_KEY = process.env.SUPABASE_S3_ACCESS_KEY;
+const SUPABASE_S3_SECRET_KEY = process.env.SUPABASE_S3_SECRET_KEY;
+const SUPABASE_S3_BUCKET = process.env.SUPABASE_S3_BUCKET;
+const SUPABASE_S3_REGION = process.env.SUPABASE_S3_REGION; // e.g., 'us-east-2'
+const SUPABASE_S3_ENDPOINT = process.env.SUPABASE_S3_ENDPOINT; // e.g., 'https://<project_ref>.supabase.co/storage/v1/s3'
+
 // Initialize Supabase client with service role for admin operations
 const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -46,29 +53,48 @@ export default defineAgent({
     const participant = await ctx.waitForParticipant();
     console.log(`starting assistant example agent for ${participant.identity}`);
     
-    // Start recording when participant joins
-    if (LIVEKIT_API_KEY && LIVEKIT_API_SECRET && LIVEKIT_URL) {
+    // Check if all required env vars are present for recording and S3 upload
+    const canRecord = LIVEKIT_API_KEY && LIVEKIT_API_SECRET && LIVEKIT_URL &&
+                      SUPABASE_S3_ACCESS_KEY && SUPABASE_S3_SECRET_KEY &&
+                      SUPABASE_S3_BUCKET && SUPABASE_S3_REGION && SUPABASE_S3_ENDPOINT;
+
+    // Check if Supabase logging is configured
+    const canLogToSupabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY;
+
+    // Start recording when participant joins if configured
+    if (canRecord) {
       try {
         console.log(`Starting recording for room: ${ctx.room.name}, user: ${participant.identity}`);
         
         // Initialize LiveKit API client
-        const lkapi = new api.LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+        const lkapi = new api.LiveKitAPI(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
-        // Start room composite recording
+        // Start room composite recording with S3 output
         const req = new api.RoomCompositeEgressRequest({
           roomName: ctx.room.name,
-          layout: 'speaker',
+          layout: 'speaker', // Or 'grid', 'pip-bottom-left', 'pip-top-right', etc.
           output: {
-            fileType: api.EncodedFileType.MP4,
-            filepath: `recording-${ctx.room.name}-${Date.now()}.mp4`,
+            fileType: api.EncodedFileType.MP4, // Desired file type
+            s3: new api.S3Upload({             // Configure S3 upload
+              accessKey: SUPABASE_S3_ACCESS_KEY!,
+              secret: SUPABASE_S3_SECRET_KEY!,
+              region: SUPABASE_S3_REGION!,
+              endpoint: SUPABASE_S3_ENDPOINT!,
+              bucket: SUPABASE_S3_BUCKET!,
+              filenamePrefix: `recordings/${ctx.room.name}`, // Folder structure within the bucket
+              metadata: {                           // Optional: Embed metadata in S3 object
+                 userId: participant.identity,
+                 roomName: ctx.room.name,
+              },
+            }),
           }
         });
         
-        const result = await lkapi.startRoomCompositeEgress(req);
+        const result = await lkapi.egress.startRoomCompositeEgress(req);
         console.log(`Recording started with egressId: ${result.egressId}`);
         
-        // If we have Supabase admin client, create a record
-        if (supabaseAdmin) {
+        // If we have Supabase admin client for logging metadata, create a record
+        if (canLogToSupabase && supabaseAdmin) {
           await supabaseAdmin
             .from('recordings')
             .insert({
@@ -78,12 +104,14 @@ export default defineAgent({
               started_at: new Date().toISOString(),
               user_id: participant.identity,
             });
+        } else if (!canLogToSupabase) {
+          console.warn('Supabase URL/Service Key not configured, cannot log recording metadata.');
         }
       } catch (error) {
         console.error('Error starting recording:', error);
       }
     } else {
-      console.error('LiveKit credentials not properly configured for recording');
+      console.error('Recording credentials (LiveKit API or Supabase S3) not properly configured.');
     }
 
     const model = new openai.realtime.RealtimeModel({
