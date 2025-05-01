@@ -75,36 +75,36 @@ export default defineAgent({
         // Use RoomServiceClient instead of LiveKitAPI
         const roomServiceClient = new RoomServiceClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
-        // Start room composite recording with S3 output
-        const req = new RoomCompositeEgressRequest({
-          roomName: ctx.room.name,
-          layout: 'speaker', 
-          // Correct structure: Wrap output details in `file` property using EncodedFileOutput
-          file: new EncodedFileOutput({ 
-            fileType: EncodedFileType.MP4, 
-            s3: new S3Upload({             
-              accessKey: SUPABASE_S3_ACCESS_KEY!,
-              secret: SUPABASE_S3_SECRET_KEY!,
-              region: SUPABASE_S3_REGION!,
-              endpoint: SUPABASE_S3_ENDPOINT!,
-              bucket: SUPABASE_S3_BUCKET!,
-              filenamePrefix: `recordings/${ctx.room.name}`, 
-              metadata: {                           
-                 userId: participant.identity,
-                 roomName: ctx.room.name,
-              },
-            }),
-          }),
-          // Remove the incorrect top-level output object
-          // output: { ... } 
+        // Define the S3 output configuration
+        const s3Output = new S3Upload({ 
+          accessKey: SUPABASE_S3_ACCESS_KEY!,
+          secret: SUPABASE_S3_SECRET_KEY!,
+          region: SUPABASE_S3_REGION!,
+          endpoint: SUPABASE_S3_ENDPOINT!,
+          bucket: SUPABASE_S3_BUCKET!,
+          // metadata and tags are optional here within S3Upload
+        });
+
+        // Define the EncodedFileOutput configuration, referencing the s3Output
+        const fileOutput = new EncodedFileOutput({ 
+          fileType: EncodedFileType.MP4, 
+          filepath: `recordings/${ctx.room.name}/${Date.now()}.mp4`, // Filepath *within the bucket* including prefix
+          s3: s3Output, 
+          // metadata can also be defined here if needed for the EncodedFileOutput itself
+          // metadata: { ... } 
         });
         
-        // Call Egress method via the .egress property
-        const result = await roomServiceClient.egress.startRoomCompositeEgress(req);
-        console.log(`Recording started with egressId: ${result.egressId}`);
-        
+        // Start room composite recording passing parameters directly
+        const result = await roomServiceClient.startRoomCompositeEgress(
+          ctx.room.name, // roomName
+          fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput | EncodedOutputs
+          { layout: 'speaker' } // opts: RoomCompositeOptions (layout goes here)
+          // Can add other RoomCompositeOptions here like `audioOnly`, `videoOnly` etc.
+        );
+
         // Check if egressId exists before inserting into Supabase
         if (canLogToSupabase && supabaseAdmin && result.egressId) {
+          console.log(`Recording started with egressId: ${result.egressId}`); // Log success only if ID exists
           await supabaseAdmin
             .from('recordings')
             .insert({
