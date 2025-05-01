@@ -183,9 +183,7 @@ function AgentControlInterface({ userId, agentState }: {
 }
 
 function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => void }) {
-  const { state } = useVoiceAssistant({
-    serviceUrl: process.env.NEXT_PUBLIC_AGENT_SERVICE_URL,
-  });
+  const { state } = useVoiceAssistant();
   
   useEffect(() => {
     props.onStateChange(state);
@@ -194,15 +192,21 @@ function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => voi
   return null;
 }
 
-function onDeviceFailure(error?: MediaDeviceFailure) {
-  console.error("Device error:", error);
+function onDeviceFailure(failureReason?: MediaDeviceFailure) { 
+  // Log the failure reason enum value
+  console.error("Device failure reason:", failureReason);
   
   let message = "Could not access media devices.";
-  if (error?.kind === "NotAllowedError") {
+
+  // Check the provided failure reason enum
+  if (failureReason === MediaDeviceFailure.PermissionDenied) {
     message = "You must allow camera and microphone permissions to join the call.";
-  } else if (error?.kind === "NotFoundError") {
+  } else if (failureReason === MediaDeviceFailure.NotFound) {
     message = "No camera or microphone found. Please connect at least one device.";
+  } else if (failureReason === MediaDeviceFailure.DeviceInUse) {
+      message = "Camera or microphone is already in use by another application.";
   }
+  // The 'Other' case will use the default message
   
   alert(message);
 }
