@@ -77,7 +77,7 @@ export default defineAgent({
         const egressClient = new EgressClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
         // Define the S3 output configuration
-        const s3Output = new S3Upload({ 
+        const s3UploadConfig = new S3Upload({ 
           accessKey: SUPABASE_S3_ACCESS_KEY!,
           secret: SUPABASE_S3_SECRET_KEY!,
           region: SUPABASE_S3_REGION!,
@@ -85,11 +85,15 @@ export default defineAgent({
           bucket: SUPABASE_S3_BUCKET!,
         });
 
-        // Define the EncodedFileOutput configuration, referencing the s3Output
+        // Define the EncodedFileOutput using the v2 structure with nested 'output'
         const fileOutput = new EncodedFileOutput({ 
           fileType: EncodedFileType.MP4, 
-          filepath: `recordings/${ctx.room.name}/${Date.now()}.mp4`, // Filepath *within the bucket* including prefix
-          s3: s3Output, 
+          filepath: `recordings/${ctx.room.name}/${Date.now()}.mp4`, // Filepath *within the bucket*
+          // Output target (S3, GCP, Azure) goes inside an 'output' property
+          output: { 
+            case: 's3', // Specify the type of output
+            value: s3UploadConfig, // Assign the S3Upload object here
+          },
         });
         
         // Start room composite recording using EgressClient
