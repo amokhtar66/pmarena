@@ -10,7 +10,6 @@ import {
   multimodal,
 } from '@livekit/agents';
 import * as openai from '@livekit/agents-plugin-openai';
-import { api } from 'livekit-server-sdk';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
