@@ -94,7 +94,8 @@ export default defineAgent({
         // Define the EncodedFileOutput using the v2 structure with nested 'output'
         const fileOutput = new EncodedFileOutput({ 
           fileType: EncodedFileType.MP4, 
-          filepath: `recordings/${ctx.room.name}/${Date.now()}.mp4`, // Filepath *within the bucket*
+          // Use a simplified static filepath for testing
+          filepath: `test-recording-${Date.now()}.mp4`, 
           // Output target (S3, GCP, Azure) goes inside an 'output' property
           output: { 
             case: 's3', // Specify the type of output
