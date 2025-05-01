@@ -19,7 +19,8 @@ import {
   RoomServiceClient,
   RoomCompositeEgressRequest,
   EncodedFileType,
-  S3Upload 
+  S3Upload,
+  EncodedFileOutput
 } from "livekit-server-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -74,13 +75,14 @@ export default defineAgent({
         // Use RoomServiceClient instead of LiveKitAPI
         const roomServiceClient = new RoomServiceClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
-        // Start room composite recording with S3 output, removing the incorrect 'api.' prefix
+        // Start room composite recording with S3 output
         const req = new RoomCompositeEgressRequest({
           roomName: ctx.room.name,
           layout: 'speaker', 
-          output: {
-            fileType: EncodedFileType.MP4, // Use imported type directly
-            s3: new S3Upload({             // Use imported type directly
+          // Correct structure: Wrap output details in `file` property using EncodedFileOutput
+          file: new EncodedFileOutput({ 
+            fileType: EncodedFileType.MP4, 
+            s3: new S3Upload({             
               accessKey: SUPABASE_S3_ACCESS_KEY!,
               secret: SUPABASE_S3_SECRET_KEY!,
               region: SUPABASE_S3_REGION!,
@@ -92,20 +94,22 @@ export default defineAgent({
                  roomName: ctx.room.name,
               },
             }),
-          }
+          }),
+          // Remove the incorrect top-level output object
+          // output: { ... } 
         });
         
-        // Call Egress method directly on RoomServiceClient
-        const result = await roomServiceClient.startRoomCompositeEgress(req);
+        // Call Egress method via the .egress property
+        const result = await roomServiceClient.egress.startRoomCompositeEgress(req);
         console.log(`Recording started with egressId: ${result.egressId}`);
         
-        // If we have Supabase admin client for logging metadata, create a record
-        if (canLogToSupabase && supabaseAdmin) {
+        // Check if egressId exists before inserting into Supabase
+        if (canLogToSupabase && supabaseAdmin && result.egressId) {
           await supabaseAdmin
             .from('recordings')
             .insert({
               room_name: ctx.room.name,
-              egress_id: result.egressId,
+              egress_id: result.egressId, // Now we know it's a string
               status: 'processing',
               started_at: new Date().toISOString(),
               user_id: participant.identity,
