@@ -20,7 +20,8 @@ import {
   RoomCompositeEgressRequest,
   EncodedFileType,
   S3Upload,
-  EncodedFileOutput
+  EncodedFileOutput,
+  EgressClient
 } from "livekit-server-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -72,8 +73,8 @@ export default defineAgent({
       try {
         console.log(`Starting recording for room: ${ctx.room.name}, user: ${participant.identity}`);
         
-        // Use RoomServiceClient instead of LiveKitAPI
-        const roomServiceClient = new RoomServiceClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
+        // Instantiate EgressClient separately
+        const egressClient = new EgressClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
         // Define the S3 output configuration
         const s3Output = new S3Upload({ 
@@ -82,7 +83,6 @@ export default defineAgent({
           region: SUPABASE_S3_REGION!,
           endpoint: SUPABASE_S3_ENDPOINT!,
           bucket: SUPABASE_S3_BUCKET!,
-          // metadata and tags are optional here within S3Upload
         });
 
         // Define the EncodedFileOutput configuration, referencing the s3Output
@@ -90,16 +90,13 @@ export default defineAgent({
           fileType: EncodedFileType.MP4, 
           filepath: `recordings/${ctx.room.name}/${Date.now()}.mp4`, // Filepath *within the bucket* including prefix
           s3: s3Output, 
-          // metadata can also be defined here if needed for the EncodedFileOutput itself
-          // metadata: { ... } 
         });
         
-        // Start room composite recording passing parameters directly
-        const result = await roomServiceClient.startRoomCompositeEgress(
+        // Start room composite recording using EgressClient
+        const result = await egressClient.startRoomCompositeEgress(
           ctx.room.name, // roomName
-          fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput | EncodedOutputs
-          { layout: 'speaker' } // opts: RoomCompositeOptions (layout goes here)
-          // Can add other RoomCompositeOptions here like `audioOnly`, `videoOnly` etc.
+          fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput
+          { layout: 'speaker' } // opts: RoomCompositeOptions
         );
 
         // Check if egressId exists before inserting into Supabase
