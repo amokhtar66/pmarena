@@ -16,6 +16,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
+import { 
+  RoomServiceClient,
+  RoomCompositeEgressRequest,
+  EncodedFileType,
+  S3Upload 
+} from "livekit-server-sdk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env');
@@ -66,23 +72,23 @@ export default defineAgent({
       try {
         console.log(`Starting recording for room: ${ctx.room.name}, user: ${participant.identity}`);
         
-        // Initialize LiveKit API client
-        const lkapi = new api.LiveKitAPI(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
+        // Use RoomServiceClient instead of LiveKitAPI
+        const roomServiceClient = new RoomServiceClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
-        // Start room composite recording with S3 output
-        const req = new api.RoomCompositeEgressRequest({
+        // Start room composite recording with S3 output, removing the incorrect 'api.' prefix
+        const req = new RoomCompositeEgressRequest({
           roomName: ctx.room.name,
-          layout: 'speaker', // Or 'grid', 'pip-bottom-left', 'pip-top-right', etc.
+          layout: 'speaker', 
           output: {
-            fileType: api.EncodedFileType.MP4, // Desired file type
-            s3: new api.S3Upload({             // Configure S3 upload
+            fileType: EncodedFileType.MP4, // Use imported type directly
+            s3: new S3Upload({             // Use imported type directly
               accessKey: SUPABASE_S3_ACCESS_KEY!,
               secret: SUPABASE_S3_SECRET_KEY!,
               region: SUPABASE_S3_REGION!,
               endpoint: SUPABASE_S3_ENDPOINT!,
               bucket: SUPABASE_S3_BUCKET!,
-              filenamePrefix: `recordings/${ctx.room.name}`, // Folder structure within the bucket
-              metadata: {                           // Optional: Embed metadata in S3 object
+              filenamePrefix: `recordings/${ctx.room.name}`, 
+              metadata: {                           
                  userId: participant.identity,
                  roomName: ctx.room.name,
               },
@@ -90,7 +96,8 @@ export default defineAgent({
           }
         });
         
-        const result = await lkapi.egress.startRoomCompositeEgress(req);
+        // Call Egress method directly on RoomServiceClient
+        const result = await roomServiceClient.startRoomCompositeEgress(req);
         console.log(`Recording started with egressId: ${result.egressId}`);
         
         // If we have Supabase admin client for logging metadata, create a record
