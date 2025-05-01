@@ -71,6 +71,12 @@ export default defineAgent({
     // Start recording when participant joins if configured
     if (canRecord) {
       try {
+        // Add runtime check for room name
+        if (!ctx.room.name) {
+          console.error('Cannot start recording: Room name is missing.');
+          return; // Or handle error appropriately
+        }
+
         console.log(`Starting recording for room: ${ctx.room.name}, user: ${participant.identity}`);
         
         // Instantiate EgressClient separately
@@ -98,7 +104,7 @@ export default defineAgent({
         
         // Start room composite recording using EgressClient
         const result = await egressClient.startRoomCompositeEgress(
-          ctx.room.name, // roomName
+          ctx.room.name, // roomName (guaranteed string)
           fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput
           { layout: 'speaker' } // opts: RoomCompositeOptions
         );
@@ -109,7 +115,7 @@ export default defineAgent({
           await supabaseAdmin
             .from('recordings')
             .insert({
-              room_name: ctx.room.name,
+              room_name: ctx.room.name, // Also guaranteed string here
               egress_id: result.egressId, // Now we know it's a string
               status: 'processing',
               started_at: new Date().toISOString(),
