@@ -55,6 +55,10 @@ const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 
 export default defineAgent({
   entry: async (ctx: JobContext) => {
+    // --- DIAGNOSTIC LOG --- 
+    console.log(`DEBUG: SUPABASE_S3_ENDPOINT value seen by agent: ${process.env.SUPABASE_S3_ENDPOINT}`);
+    // --- END DIAGNOSTIC LOG ---
+    
     await ctx.connect();
     console.log('waiting for participant');
     const participant = await ctx.waitForParticipant();
