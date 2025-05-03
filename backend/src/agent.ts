@@ -45,7 +45,6 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_S3_ACCESS_KEY = process.env.SUPABASE_S3_ACCESS_KEY;
 const SUPABASE_S3_SECRET_KEY = process.env.SUPABASE_S3_SECRET_KEY;
 const SUPABASE_S3_BUCKET = process.env.SUPABASE_S3_BUCKET;
-const SUPABASE_S3_REGION = process.env.SUPABASE_S3_REGION; // e.g., 'us-east-2'
 const SUPABASE_S3_ENDPOINT = process.env.SUPABASE_S3_ENDPOINT; // e.g., 'https://<project_ref>.supabase.co/storage/v1/s3'
 
 // Initialize Supabase client with service role for admin operations
@@ -67,7 +66,7 @@ export default defineAgent({
     // Check if all required env vars are present for recording and S3 upload
     const canRecord = LIVEKIT_API_KEY && LIVEKIT_API_SECRET && LIVEKIT_URL &&
                       SUPABASE_S3_ACCESS_KEY && SUPABASE_S3_SECRET_KEY &&
-                      SUPABASE_S3_BUCKET && SUPABASE_S3_REGION && SUPABASE_S3_ENDPOINT;
+                      SUPABASE_S3_BUCKET && SUPABASE_S3_ENDPOINT;
 
     // Check if Supabase logging is configured
     const canLogToSupabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY;
