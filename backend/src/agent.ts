@@ -93,6 +93,7 @@ export default defineAgent({
           region: SUPABASE_S3_REGION!,
           endpoint: SUPABASE_S3_ENDPOINT!,
           bucket: SUPABASE_S3_BUCKET!,
+          forcePathStyle: true,
         });
 
         // Define the EncodedFileOutput using the v2 structure with nested 'output'
