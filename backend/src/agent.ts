@@ -94,7 +94,6 @@ export default defineAgent({
           endpoint: SUPABASE_S3_ENDPOINT!,
           bucket: SUPABASE_S3_BUCKET!,
           forcePathStyle: true,
-          signatureVersion: 'v4', // Explicitly use AWS Signature V4 for compatibility
           multipartUpload: false, // Disable multipart uploads to use simple PutObject operations
           multipartThreshold: 5368709120, // Set an extremely high threshold (5GB) to prevent multipart upload
         });
