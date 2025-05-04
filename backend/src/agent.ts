@@ -86,6 +86,7 @@ export default defineAgent({
         const egressClient = new EgressClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
         // Define the S3 output configuration
+        // Last modified: May 3, 2025 - Disabled multipart uploads to fix Supabase compatibility issues
         const s3UploadConfig = new S3Upload({ 
           accessKey: SUPABASE_S3_ACCESS_KEY!,
           secret: SUPABASE_S3_SECRET_KEY!,
@@ -93,6 +94,9 @@ export default defineAgent({
           endpoint: SUPABASE_S3_ENDPOINT!,
           bucket: SUPABASE_S3_BUCKET!,
           forcePathStyle: true,
+          signatureVersion: 'v4', // Explicitly use AWS Signature V4 for compatibility
+          multipartUpload: false, // Disable multipart uploads to use simple PutObject operations
+          multipartThreshold: 5368709120, // Set an extremely high threshold (5GB) to prevent multipart upload
         });
 
         // Define the EncodedFileOutput using the v2 structure with nested 'output'
@@ -289,3 +293,4 @@ This approach allows adaptability and deeper insight into the candidate's strate
 cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url) }));
 
 // Added signature version on 05/03/2025 21:36:07
+// Forced change to trigger git
