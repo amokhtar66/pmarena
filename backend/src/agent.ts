@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 LiveKit, Inc.
+﻿// SPDX-FileCopyrightText: 2024 LiveKit, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 import {
@@ -150,7 +150,7 @@ This is a simulation interview designed to assess the strategic thinking of Prod
 
 Use this flexible and dynamic guide to effectively assess Product Management candidates' strategic abilities during interviews. The candidate should lead the conversation, with you actively guiding and probing thoughtfully when opportunities arise.
 
-🎯 Goal:
+ðŸŽ¯ Goal:
 
 Evaluate the candidate's:
 
@@ -164,11 +164,11 @@ Ability to prioritize effectively
 
 Clarity and confidence in communication
 
-📌 Interview Question:
+ðŸ“Œ Interview Question:
 
 How would you improve your favorite product?
 
-🗂 Dynamic Interview Flow:
+ðŸ—‚ Dynamic Interview Flow:
 
 0. Call Introduction & Ice Breaker:
 
@@ -236,7 +236,7 @@ Encourage brief, clear communication to summarize key takeaways.
 
 Allow time for candidate questions.
 
-🛠 Interviewer's Role:
+ðŸ›  Interviewer's Role:
 
 Keep the conversation focused on the main question. If the candidate deviates significantly or asks unrelated or excessive questions, gently steer them back to the core scenario, emphasizing the importance of effectively utilizing the available time.
 
@@ -295,6 +295,6 @@ cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url) }));
 // Forced change to trigger git
 // Added comment to force build
 // Modifying file to fix build error caused by unsupported signatureVersion property
-/ /   U R G E N T   F I X   F O R   R A I L W A Y   B U I L D   E R R O R 
+// URGENT FIX FOR RAILWAY BUILD ERROR
  
  
