@@ -128,7 +128,7 @@ export default defineAgent({
         const result = await egressClient.startRoomCompositeEgress(
           ctx.room.name, // roomName (guaranteed string)
           fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput
-          { layout: 'speaker' } // opts: RoomCompositeOptions
+          { layout: 'grid' } // Changed from 'speaker' to 'grid'
         );
 
         // If using Backblaze B2 Storage directly, register the config with the listener
