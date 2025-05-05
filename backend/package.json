@@ -23,6 +23,8 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.802.0",
+    "@aws-sdk/s3-request-presigner": "^3.802.0",
     "@livekit/agents": "^0.7.4",
     "@livekit/agents-plugin-openai": "^0.9.1",
     "@livekit/rtc-node": "^0.13.11",

@@ -32,6 +32,8 @@ import {
   EncodedFileOutput,
   EgressClient
 } from "livekit-server-sdk";
+import { STORAGE_PROVIDER, createStorageConfig } from './storage-adapter';
+import { EgressListener } from './egress-listener';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env');
@@ -50,21 +52,38 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// S3 Upload environment variables (Expected to be set in Railway)
-const SUPABASE_S3_ACCESS_KEY = process.env.SUPABASE_S3_ACCESS_KEY;
-const SUPABASE_S3_SECRET_KEY = process.env.SUPABASE_S3_SECRET_KEY;
-const SUPABASE_S3_BUCKET = process.env.SUPABASE_S3_BUCKET;
-const SUPABASE_S3_ENDPOINT = process.env.SUPABASE_S3_ENDPOINT; // e.g., 'https://<project_ref>.supabase.co/storage/v1/s3'
+// Storage configuration (former S3 Upload environment variables)
+// These can be used with either Supabase or Backblaze
+const STORAGE_ACCESS_KEY = process.env.STORAGE_ACCESS_KEY;
+const STORAGE_SECRET_KEY = process.env.STORAGE_SECRET_KEY;
+const STORAGE_BUCKET = process.env.STORAGE_BUCKET;
+const STORAGE_ENDPOINT = process.env.STORAGE_ENDPOINT;
+const STORAGE_REGION = process.env.STORAGE_REGION || ''; // Backblaze B2 region, default empty
 
 // Initialize Supabase client with service role for admin operations
 const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
+// Initialize the egress listener if Backblaze B2 storage is enabled
+let egressListener: EgressListener | null = null;
+if (STORAGE_PROVIDER === 'BACKBLAZE' && LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET) {
+  egressListener = new EgressListener({
+    livekitUrl: LIVEKIT_URL,
+    livekitApiKey: LIVEKIT_API_KEY,
+    livekitApiSecret: LIVEKIT_API_SECRET,
+    supabaseUrl: SUPABASE_URL,
+    supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY
+  });
+  egressListener.startListening();
+  console.log('Egress listener started for Backblaze B2 Storage uploads');
+}
+
 export default defineAgent({
   entry: async (ctx: JobContext) => {
     // --- DIAGNOSTIC LOG --- 
-    console.log(`DEBUG: SUPABASE_S3_ENDPOINT value seen by agent: ${process.env.SUPABASE_S3_ENDPOINT}`);
+    console.log(`DEBUG: STORAGE_PROVIDER: ${STORAGE_PROVIDER}`);
+    console.log(`DEBUG: STORAGE_ENDPOINT value: ${STORAGE_ENDPOINT}`);
     // --- END DIAGNOSTIC LOG ---
     
     await ctx.connect();
@@ -72,10 +91,10 @@ export default defineAgent({
     const participant = await ctx.waitForParticipant();
     console.log(`starting assistant example agent for ${participant.identity}`);
     
-    // Check if all required env vars are present for recording and S3 upload
+    // Check if all required env vars are present for recording and storage
     const canRecord = LIVEKIT_API_KEY && LIVEKIT_API_SECRET && LIVEKIT_URL &&
-                      SUPABASE_S3_ACCESS_KEY && SUPABASE_S3_SECRET_KEY &&
-                      SUPABASE_S3_BUCKET && SUPABASE_S3_ENDPOINT;
+                      STORAGE_ACCESS_KEY && STORAGE_SECRET_KEY &&
+                      STORAGE_BUCKET && STORAGE_ENDPOINT;
 
     // Check if Supabase logging is configured
     const canLogToSupabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY;
@@ -94,28 +113,16 @@ export default defineAgent({
         // Instantiate EgressClient separately
         const egressClient = new EgressClient(LIVEKIT_URL!, LIVEKIT_API_KEY!, LIVEKIT_API_SECRET!);
         
-        // Define the S3 output configuration
-        // Last modified: May 3, 2025 - Disabled multipart uploads to fix Supabase compatibility issues
-        const s3UploadConfig = new S3Upload({ 
-          accessKey: SUPABASE_S3_ACCESS_KEY!,
-          secret: SUPABASE_S3_SECRET_KEY!,
-          region: '',  // Explicitly empty string as required for non-AWS S3 providers
-          endpoint: SUPABASE_S3_ENDPOINT!,
-          bucket: SUPABASE_S3_BUCKET!,
-          forcePathStyle: true,
-        });
-
-        // Define the EncodedFileOutput using the v2 structure with nested 'output'
-        const fileOutput = new EncodedFileOutput({ 
-          fileType: EncodedFileType.MP4, 
-          // Use a simplified static filepath for testing
-          filepath: `test-recording-${Date.now()}.mp4`, 
-          // Output target (S3, GCP, Azure) goes inside an 'output' property
-          output: { 
-            case: 's3', // Specify the type of output
-            value: s3UploadConfig, // Assign the S3Upload object here
-          },
-        });
+        // Use our storage adapter to create the appropriate configuration
+        const filepath = `recording-${ctx.room.name}-${Date.now()}.mp4`;
+        const { fileOutput, backblazeConfig } = createStorageConfig(
+          STORAGE_ACCESS_KEY!,
+          STORAGE_SECRET_KEY!,
+          STORAGE_ENDPOINT!,
+          STORAGE_BUCKET!,
+          STORAGE_REGION!,
+          filepath
+        );
         
         // Start room composite recording using EgressClient
         const result = await egressClient.startRoomCompositeEgress(
@@ -123,6 +130,11 @@ export default defineAgent({
           fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput
           { layout: 'speaker' } // opts: RoomCompositeOptions
         );
+
+        // If using Backblaze B2 Storage directly, register the config with the listener
+        if (STORAGE_PROVIDER === 'BACKBLAZE' && egressListener && backblazeConfig && result.egressId) {
+          egressListener.registerBackblazeConfig(result.egressId, backblazeConfig);
+        }
 
         // Check if egressId exists before inserting into Supabase
         if (canLogToSupabase && supabaseAdmin && result.egressId) {
@@ -143,7 +155,7 @@ export default defineAgent({
         console.error('Error starting recording:', error);
       }
     } else {
-      console.error('Recording credentials (LiveKit API or Supabase S3) not properly configured.');
+      console.error('Recording credentials (LiveKit API or Storage) not properly configured.');
     }
 
     // --- Agent Logic --- 
