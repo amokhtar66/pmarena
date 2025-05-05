@@ -44,27 +44,8 @@ export function createStorageConfig(
     isPublicBucket: IS_PUBLIC_BUCKET
   };
   
-  // If using Backblaze B2 Storage directly
-  if (STORAGE_PROVIDER === 'BACKBLAZE') {
-    console.log(`Using Backblaze B2 Storage for uploads (Public bucket: ${IS_PUBLIC_BUCKET})`);
-    
-    // Create a local output file configuration
-    // The actual upload to Backblaze will happen in a post-processing step
-    const localPath = filepath || `temp-recording-${Date.now()}.mp4`;
-    
-    return {
-      fileOutput: new EncodedFileOutput({
-        fileType: EncodedFileType.MP4,
-        filepath: localPath,
-      }),
-      backblazeConfig
-    };
-  }
-  
-  // If using LiveKit's S3Upload (default)
-  console.log(`Using LiveKit S3Upload for uploads (STORAGE_PROVIDER set to ${STORAGE_PROVIDER})`);
-  
-  // Create a standard S3Upload configuration
+  // Create a standard S3Upload configuration regardless of which method we'll actually use
+  // This is necessary because LiveKit requires this configuration
   const s3UploadConfig = new S3Upload({
     accessKey,
     secret,
@@ -77,6 +58,31 @@ export function createStorageConfig(
     // Set high threshold to prevent multipart upload
     multipartThreshold: 5368709120, // 5GB
   });
+  
+  // If using Backblaze B2 Storage directly
+  if (STORAGE_PROVIDER === 'BACKBLAZE') {
+    console.log(`Using Backblaze B2 Storage for uploads (Public bucket: ${IS_PUBLIC_BUCKET})`);
+    
+    const localPath = filepath || `temp-recording-${Date.now()}.mp4`;
+    
+    // We still need to provide the S3 output configuration for LiveKit to work,
+    // even though we'll actually use our custom upload logic
+    return {
+      fileOutput: new EncodedFileOutput({
+        fileType: EncodedFileType.MP4,
+        filepath: localPath,
+        // Output is required by LiveKit API
+        output: {
+          case: 's3',
+          value: s3UploadConfig,
+        },
+      }),
+      backblazeConfig
+    };
+  }
+  
+  // If using LiveKit's S3Upload (default)
+  console.log(`Using LiveKit S3Upload for uploads (STORAGE_PROVIDER set to ${STORAGE_PROVIDER})`);
   
   return {
     fileOutput: new EncodedFileOutput({
