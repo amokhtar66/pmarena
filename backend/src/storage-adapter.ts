@@ -10,7 +10,7 @@ import {
   EncodedFileOutput 
 } from 'livekit-server-sdk';
 
-import { BackblazeStorageConfig } from './backblaze-storage';
+import { BackblazeStorageConfig } from './backblaze-storage.js';
 
 // Feature flag - set this to indicate which storage provider to use
 // Options: 'LIVEKIT_S3', 'SUPABASE', 'BACKBLAZE'

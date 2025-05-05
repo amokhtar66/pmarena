@@ -32,8 +32,8 @@ import {
   EncodedFileOutput,
   EgressClient
 } from "livekit-server-sdk";
-import { STORAGE_PROVIDER, createStorageConfig } from './storage-adapter';
-import { EgressListener } from './egress-listener';
+import { STORAGE_PROVIDER, createStorageConfig } from './storage-adapter.js';
+import { EgressListener } from './egress-listener.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env');

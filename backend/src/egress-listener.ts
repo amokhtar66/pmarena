@@ -5,7 +5,7 @@
 // @ts-nocheck - Suppress TypeScript errors for now
 
 import { EgressClient, EgressInfo, RoomCompositeEgressRequest } from 'livekit-server-sdk';
-import { uploadToBackblazeStorage, BackblazeStorageConfig } from './backblaze-storage';
+import { uploadToBackblazeStorage, BackblazeStorageConfig } from './backblaze-storage.js';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
