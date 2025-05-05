@@ -94,8 +94,6 @@ export default defineAgent({
           endpoint: SUPABASE_S3_ENDPOINT!,
           bucket: SUPABASE_S3_BUCKET!,
           forcePathStyle: true,
-          multipartUpload: false, // Disable multipart uploads to use simple PutObject operations
-          multipartThreshold: 5368709120, // Set an extremely high threshold (5GB) to prevent multipart upload
         });
 
         // Define the EncodedFileOutput using the v2 structure with nested 'output'
@@ -296,5 +294,3 @@ cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url) }));
 // Added comment to force build
 // Modifying file to fix build error caused by unsupported signatureVersion property
 // URGENT FIX FOR RAILWAY BUILD ERROR
- 
- 
