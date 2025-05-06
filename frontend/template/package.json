@@ -1,0 +1,28 @@
+{
+  "name": "pmarena-recording-template",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@livekit/components-react": "^1.1.0",
+    "@livekit/components-styles": "^1.0.6",
+    "livekit-client": "^1.11.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^20.1.0",
+    "@types/react": "^18.2.6",
+    "@types/react-dom": "^18.2.4",
+    "@types/phoenix": "^1.6.1",
+    "@types/prop-types": "^15.7.5",
+    "@types/ws": "^8.5.5",
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "^5.0.4",
+    "vite": "^4.3.5"
+  }
+} 

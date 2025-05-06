@@ -128,7 +128,10 @@ export default defineAgent({
         const result = await egressClient.startRoomCompositeEgress(
           ctx.room.name, // roomName (guaranteed string)
           fileOutput,    // output: EncodedFileOutput | StreamOutput | SegmentedFileOutput
-          { layout: 'grid' } // Changed from 'speaker' to 'grid'
+          { 
+            layout: 'grid', // Grid layout organizes participants evenly
+            custom_base_url: process.env.RECORDING_TEMPLATE_URL || 'https://your-deployed-template-url.com' // Add custom template URL
+          }
         );
 
         // If using Backblaze B2 Storage directly, register the config with the listener

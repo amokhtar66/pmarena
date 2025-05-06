@@ -1,0 +1,44 @@
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+}
+
+/* Grid layout container */
+.lk-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows: minmax(240px, auto);
+  gap: 8px;
+  padding: 8px;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* When screen share is active */
+.has-screen-share .lk-grid-layout {
+  grid-template-areas: 
+    "screen-share screen-share"
+    "participants participants";
+  grid-template-rows: 2fr 1fr;
+}
+
+.screen-share-container {
+  grid-area: screen-share;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.participants-container {
+  grid-area: participants;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+} 
