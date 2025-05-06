@@ -4,6 +4,7 @@ import {
   ParticipantTile,
   RoomAudioRenderer,
   useTracks,
+  useParticipants,
   VideoRenderer,
 } from '@livekit/components-react';
 import { 
@@ -97,13 +98,28 @@ export default function Room({ serverUrl, token, layout }: RoomProps) {
     };
   }, [room, serverUrl, token]);
 
+  // Get all participants in the room
+  const participants = useParticipants();
+
   // Get all camera and screen share tracks
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
       { source: Track.Source.ScreenShare, withPlaceholder: false },
     ],
-    { onlySubscribed: false }
+    { 
+      onlySubscribed: false,
+      // This ensures we see participants even without published tracks
+      updateOnlyOn: [
+        RoomEvent.ParticipantConnected,
+        RoomEvent.ParticipantDisconnected,
+        RoomEvent.ActiveSpeakersChanged,
+        RoomEvent.TrackSubscribed,
+        RoomEvent.TrackUnsubscribed,
+        RoomEvent.LocalTrackPublished,
+        RoomEvent.LocalTrackUnpublished,
+      ]
+    }
   );
 
   if (!connected) {
@@ -114,9 +130,24 @@ export default function Room({ serverUrl, token, layout }: RoomProps) {
   const screenShareTracks = tracks.filter(
     track => track.source === Track.Source.ScreenShare
   );
-  const cameraTrack = tracks.filter(
+  
+  // Create placeholder tiles for participants without camera tracks
+  // This ensures all participants are shown, even if they have no camera
+  let cameraAndPlaceholderTracks = [...tracks.filter(
     track => track.source === Track.Source.Camera
-  );
+  )];
+
+  // Ensure all participants are represented - add placeholders for those without camera tracks
+  if (participants.length > cameraAndPlaceholderTracks.length) {
+    // Just use the participant tracks to make sure everyone is shown
+    cameraAndPlaceholderTracks = participants.map(participant => ({
+      participant,
+      publication: participant.getTrack(Track.Source.Camera),
+      source: Track.Source.Camera,
+      // If no camera is available, force the placeholder to appear
+      streamState: participant.getTrack(Track.Source.Camera)?.track ? undefined : 'notransmitting',
+    }));
+  }
 
   // Determine if we have screen shares
   const hasScreenShare = screenShareTracks.length > 0;
@@ -138,7 +169,7 @@ export default function Room({ serverUrl, token, layout }: RoomProps) {
           </div>
           <div className="participants-container">
             <GridLayout 
-              tracks={cameraTrack}
+              tracks={cameraAndPlaceholderTracks}
               className="participants-grid"
             >
               <EnhancedParticipantTile />
@@ -146,7 +177,7 @@ export default function Room({ serverUrl, token, layout }: RoomProps) {
           </div>
         </div>
       ) : (
-        <GridLayout tracks={cameraTrack}>
+        <GridLayout tracks={cameraAndPlaceholderTracks}>
           <EnhancedParticipantTile />
         </GridLayout>
       )}
