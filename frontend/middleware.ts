@@ -56,7 +56,8 @@ export async function middleware(req: NextRequest) {
   // --- Redirect logic for non-API routes/pages ---
   if (session) {
     // User is authenticated
-    if (pathname === '/auth') {
+    // Redirect from /auth to / if authenticated and not an API call (though /auth isn't an API route)
+    if (pathname === '/auth' && !pathname.startsWith('/api/')) {
       console.log('Middleware: Redirecting authenticated user from /auth to /');
       const redirectUrl = new URL('/', req.url);
       if (searchParams.get('noRedirect')) redirectUrl.searchParams.set('noRedirect', 'true');
@@ -64,16 +65,16 @@ export async function middleware(req: NextRequest) {
     }
   } else {
     // User is not authenticated
-    // Ensure we are not on an auth path already to prevent redirect loops
-    if (pathname !== '/auth' && !pathname.startsWith('/auth/callback')) { 
+    // Redirect to /auth?mode=signin if not authenticated, not already on /auth, not an auth callback, and NOT an API route
+    if (pathname !== '/auth' && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/api/')) {
       console.log(`Middleware: Redirecting unauthenticated user from ${pathname} to /auth?mode=signin`);
       const redirectUrl = new URL('/auth?mode=signin', req.url);
       return NextResponse.redirect(redirectUrl);
     }
   }
 
-  // Ensure /auth page (if not authenticated) has a mode parameter
-  if (pathname === '/auth' && !mode && !session) {
+  // Ensure /auth page (if not authenticated and not an API route) has a mode parameter
+  if (pathname === '/auth' && !mode && !session && !pathname.startsWith('/api/')) {
     console.log('Middleware: Adding mode=signin to /auth URL');
     const redirectUrl = new URL('/auth?mode=signin', req.url);
     return NextResponse.redirect(redirectUrl);
