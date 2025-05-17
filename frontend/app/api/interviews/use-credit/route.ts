@@ -50,8 +50,12 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error('Unexpected error in /api/interviews/use-credit:', error)
+    let errorMessage = 'An unexpected error occurred during credit use.'
+    if (error instanceof Error) {
+      errorMessage = error.message
+    }
     return NextResponse.json(
-      { error: 'An unexpected error occurred.', details: error.message },
+      { error: 'Failed to use interview credit due to an unexpected server error.', details: errorMessage },
       { status: 500 }
     )
   }
