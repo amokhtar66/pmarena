@@ -89,10 +89,14 @@ export async function POST(req: Request) {
       )
     }
   } catch (error) {
-    console.error('Unexpected error in /api/payments/create:', error)
+    console.error('Unexpected error in /api/payments/create:', error);
+    let errorMessage = 'An unexpected error occurred while creating the payment order.';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
     return NextResponse.json(
-      { error: 'An unexpected error occurred.', details: error.message },
+      { error: 'Failed to create payment order due to an unexpected server error.', details: errorMessage },
       { status: 500 }
-    )
+    );
   }
 } 
