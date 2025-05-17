@@ -12,6 +12,7 @@ interface AuthContextProps {
   loading: boolean
   signOut: () => Promise<void>
   checkSession: () => Promise<boolean>
+  refreshUserProfile?: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextProps>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextProps>({
   loading: true,
   signOut: async () => {},
   checkSession: async () => false,
+  refreshUserProfile: async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -31,20 +33,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getProfile = async (userId: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single()
       
+      if (error) {
+        console.error('Error fetching profile in getProfile:', error)
+        setProfile(null)
+        return
+      }
+
       if (data) {
-        console.log('Profile loaded:', data.display_name)
+        console.log('Profile loaded:', data.display_name, 'Credits:', data.interview_credits)
         setProfile(data as UserProfile)
       } else {
         console.log('No profile found for user')
+        setProfile(null)
       }
     } catch (error) {
-      console.error('Error getting profile:', error)
+      console.error('Exception in getProfile:', error)
+      setProfile(null)
+    }
+  }
+
+  const refreshUserProfile = async () => {
+    if (user) {
+      console.log('Refreshing user profile for:', user.id)
+      await getProfile(user.id)
+    } else {
+      console.log('Cannot refresh profile, no user session.')
     }
   }
 
@@ -130,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         signOut,
         checkSession,
+        refreshUserProfile,
       }}
     >
       {children}

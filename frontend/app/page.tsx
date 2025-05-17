@@ -7,16 +7,13 @@ import { useAuth } from "@/lib/AuthContext";
 import { useAgentControl } from "@/lib/useAgentControl";
 import {
   AgentState,
-  BarVisualizer,
   DisconnectButton,
   LiveKitRoom,
   RoomAudioRenderer,
-  VoiceAssistantControlBar,
   useVoiceAssistant,
   VideoConference,
   useRoomContext,
 } from "@livekit/components-react";
-import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure, Room, Track } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
@@ -25,17 +22,31 @@ import type { ConnectionDetails } from "./api/connection-details/route";
 
 // Recording functionality removed as it will be handled by the backend
 
+const XPAY_VARIABLE_AMOUNT_ID = process.env.NEXT_PUBLIC_XPAY_VARIABLE_AMOUNT_ID || "749"; // Replace with your actual ID or use env var
+const CREDITS_PRICE_CENTS = 2000; // $20.00
+const CREDITS_TO_AWARD = 3;
+const PRODUCT_DESCRIPTION = `${CREDITS_TO_AWARD} Interview Credits`;
+
 export default function Page() {
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, signOut, loading: authLoading, refreshUserProfile } = useAuth();
   const router = useRouter();
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(
     undefined
   );
   const [agentState, setAgentState] = useState<AgentState>("disconnected");
+  const [interviewCredits, setInterviewCredits] = useState<number | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isProcessingCreditUse, setIsProcessingCreditUse] = useState(false);
 
-  // Check for URL parameter to clear after navigation
   useEffect(() => {
-    // Clear noRedirect flag from URL if present to prevent future issues
+    if (profile) {
+      setInterviewCredits(profile.interview_credits || 0);
+    }
+  }, [profile]);
+
+  // Check for URL parameter to clear after navigation (existing effect)
+  useEffect(() => {
     if (window.location.href.includes('noRedirect=true')) {
       const url = new URL(window.location.href);
       url.searchParams.delete('noRedirect');
@@ -44,7 +55,7 @@ export default function Page() {
     }
   }, []);
 
-  const onConnectButtonClicked = useCallback(async () => {
+  const fetchConnectionDetails = useCallback(async () => {
     const url = new URL(
       process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT ?? "/api/connection-details",
       window.location.origin
@@ -54,8 +65,77 @@ export default function Page() {
     updateConnectionDetails(connectionDetailsData);
   }, []);
 
+  const handleBuyCredits = async () => {
+    if (!user) {
+      setPaymentError("Please sign in to buy credits.");
+      return;
+    }
+    setIsProcessingPayment(true);
+    setPaymentError(null);
+    try {
+      const response = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount_in_cents: CREDITS_PRICE_CENTS,
+          product_description: PRODUCT_DESCRIPTION,
+          variable_amount_id: XPAY_VARIABLE_AMOUNT_ID,
+          // userId, userEmail, userName are handled by the API route using authenticated user
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.payment_url) {
+        window.location.href = data.payment_url; // Redirect to XPay
+      } else {
+        setPaymentError(data.error || "Failed to create payment order. Please try again.");
+      }
+    } catch (error) {
+      console.error("Buy credits error:", error);
+      setPaymentError("An unexpected error occurred. Please try again.");
+    }
+    setIsProcessingPayment(false);
+  };
+
+  const handleStartConversationClick = async () => {
+    if (!user) {
+      alert("User not found. Please re-login.");
+      return;
+    }
+    if (interviewCredits === null || interviewCredits <= 0) {
+      alert("You don't have enough interview credits. Please buy more.");
+      return;
+    }
+
+    setIsProcessingCreditUse(true);
+    try {
+      const response = await fetch('/api/interviews/use-credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (response.ok) {
+        if (refreshUserProfile) {
+           await refreshUserProfile(); // Refresh to get updated credits before connecting
+        } else {
+            // Fallback: Optimistically update credits locally if refresh is not available
+            setInterviewCredits(prev => (prev !== null ? prev - 1 : 0));
+        }
+        // Proceed to fetch connection details for LiveKit
+        await fetchConnectionDetails();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to use interview credit. Please try again.");
+      }
+    } catch (error) {
+      console.error("Use credit error:", error);
+      alert("An error occurred while trying to use an interview credit.");
+    }
+    setIsProcessingCreditUse(false);
+  };
+
   // Show loading state while checking auth
-  if (loading) {
+  if (authLoading) {
     return (
       <main data-lk-theme="default" className="h-full flex items-center justify-center bg-[var(--lk-bg)]">
         <div className="text-center">
@@ -67,35 +147,61 @@ export default function Page() {
   
   // Redirect if not authenticated (this is a fallback; middleware should handle this)
   if (!user) {
-    return null;
+    // router.push('/signin'); // Or your login page
+    return null; // Middleware should handle redirect
   }
 
-  // Only show the start button initially
+  // Main view before connecting to a room
   if (!connectionDetails) {
     return (
       <main data-lk-theme="default" className="h-full flex flex-col items-center justify-center bg-[var(--lk-bg)]">
-        <div className="mb-8 text-center">
-          <h1 className="text-xl font-bold mb-2">Welcome, {profile?.display_name || user?.email}</h1>
-          <button 
-            onClick={signOut}
-            className="text-sm text-red-600 hover:text-red-800"
+        <div className="mb-8 text-center p-6 bg-white/10 rounded-lg shadow-xl">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-xl font-bold">Welcome, {profile?.display_name || user?.email}</h1>
+            <button 
+              onClick={signOut}
+              className="text-sm text-red-400 hover:text-red-300 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+          
+          <div className="my-6">
+            <p className="text-lg">
+              {interviewCredits === null 
+                ? "Loading credits..." 
+                : `You have ${interviewCredits} interview credit${interviewCredits === 1 ? '' : 's'}.`}
+            </p>
+            {paymentError && <p className="text-red-400 mt-2">Error: {paymentError}</p>}
+          </div>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.09, 1.04, 0.245, 1.055] }}
+            className="w-full uppercase px-5 py-3 mb-3 bg-blue-500 text-white text-lg font-medium rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+            onClick={handleBuyCredits}
+            disabled={isProcessingPayment}
           >
-            Sign Out
-          </button>
+            {isProcessingPayment ? "Processing..." : `Buy ${CREDITS_TO_AWARD} Credits ($${CREDITS_PRICE_CENTS / 100})`}
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.09, 1.04, 0.245, 1.055], delay: 0.1 }}
+            className="w-full uppercase px-5 py-3 bg-green-500 text-white text-lg font-medium rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleStartConversationClick}
+            disabled={interviewCredits === null || interviewCredits <= 0 || isProcessingCreditUse || isProcessingPayment}
+          >
+            {isProcessingCreditUse ? "Starting..." : "Start a conversation"}
+          </motion.button>
         </div>
-        <motion.button
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: [0.09, 1.04, 0.245, 1.055] }}
-          className="uppercase px-5 py-3 bg-white text-black text-lg font-medium rounded-md hover:bg-gray-100 transition-colors"
-          onClick={onConnectButtonClicked}
-        >
-          Start a conversation
-        </motion.button>
       </main>
     );
   }
 
+  // Room view (when connected)
   return (
     <main data-lk-theme="default" className="h-full w-full overflow-hidden bg-[var(--lk-bg)]">
       <LiveKitRoom
@@ -107,6 +213,8 @@ export default function Page() {
         onMediaDeviceFailure={onDeviceFailure}
         onDisconnected={() => {
           updateConnectionDetails(undefined);
+          // Optionally refresh credits here too, in case a conversation ended prematurely
+          // if (refreshUserProfile) refreshUserProfile(); 
         }}
         className="h-full w-full flex flex-col"
       >
@@ -114,8 +222,6 @@ export default function Page() {
           <VideoConference />
         </div>
         <RoomAudioRenderer />
-        
-        {/* Recording buttons removed - will be handled by backend */}
         
         {/* Hidden but kept for state tracking */}
         <div className="hidden">
@@ -129,13 +235,21 @@ export default function Page() {
             </div>
           </div>
           <div className="flex items-center">
-            <DisconnectButton className="ml-4" onClick={() => updateConnectionDetails(undefined)}>
+            <DisconnectButton 
+              className="ml-4" 
+              onClick={() => {
+                updateConnectionDetails(undefined);
+                 // if (refreshUserProfile) refreshUserProfile(); // Also consider refreshing credits on manual disconnect
+              }}
+            >
               <CloseIcon />
             </DisconnectButton>
           </div>
         </div>
         
         <div className="relative flex gap-2 mx-auto mb-4">
+          {/* Pass interviewCredits and refreshUserProfile to AgentControlInterface if needed there */}
+          {/* Or manage credit display/actions primarily on this Page component */}
           <AgentControlInterface userId={user.id} agentState={agentState} />
         </div>
       </LiveKitRoom>
@@ -146,9 +260,14 @@ export default function Page() {
 function AgentControlInterface({ userId, agentState }: { 
   userId: string;
   agentState: AgentState;
+  // Potentially pass down interviewCredits or handlers if AgentControlButtons directly influence credits
 }) {
   const room = useRoomContext();
   const { isAgentActive, startConversation, leaveCall } = useAgentControl(room, userId);
+  // The actual "start agent" logic is now within handleStartConversationClick in Page
+  // So, AgentControlButtons' onStartConversation should perhaps be simplified or adapted
+  // For now, we assume handleStartConversationClick in Page handles credit check and then calls LiveKit setup.
+  // The `startConversation` from `useAgentControl` likely just focuses on LiveKit agent interactions.
   
   return (
     <AnimatePresence mode="wait">
@@ -161,7 +280,8 @@ function AgentControlInterface({ userId, agentState }: {
           transition={{ duration: 0.3 }}
           className="absolute bottom-16 left-1/2 transform -translate-x-1/2"
         >
-          <NoAgentNotification state={agentState} />
+          {/* Consider passing interviewCredits > 0 to NoAgentNotification if its message should change */}
+          <NoAgentNotification state={agentState} /> 
         </motion.div>
       )}
       
@@ -174,8 +294,14 @@ function AgentControlInterface({ userId, agentState }: {
         <AgentControlButtons
           agentState={agentState}
           isAgentActive={isAgentActive}
-          onStartConversation={startConversation}
+          // onStartConversation should ideally not be called directly anymore if credits are handled outside.
+          // The main "Start a conversation" button on the initial screen triggers the credit check and then connection.
+          // If AgentControlButtons is for *re-starting* an agent mid-call, its logic might differ.
+          // For now, assuming the main button on `Page` is the entry point.
+          onStartConversation={startConversation} // This might need review based on flow.
           onLeaveCall={leaveCall}
+          // Add a prop like `isStartDisabled` if the button here also needs to check credits.
+          // isStartDisabled={interviewCredits <= 0} // Example if this button also starts conversations
         />
       </motion.div>
     </AnimatePresence>
@@ -193,12 +319,8 @@ function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => voi
 }
 
 function onDeviceFailure(failureReason?: MediaDeviceFailure) { 
-  // Log the failure reason enum value
   console.error("Device failure reason:", failureReason);
-  
   let message = "Could not access media devices.";
-
-  // Check the provided failure reason enum
   if (failureReason === MediaDeviceFailure.PermissionDenied) {
     message = "You must allow camera and microphone permissions to join the call.";
   } else if (failureReason === MediaDeviceFailure.NotFound) {
@@ -206,7 +328,5 @@ function onDeviceFailure(failureReason?: MediaDeviceFailure) {
   } else if (failureReason === MediaDeviceFailure.DeviceInUse) {
       message = "Camera or microphone is already in use by another application.";
   }
-  // The 'Other' case will use the default message
-  
   alert(message);
 }

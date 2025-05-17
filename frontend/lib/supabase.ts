@@ -14,4 +14,5 @@ export type UserProfile = {
   id: string;
   display_name: string;
   email: string;
+  interview_credits?: number;
 } 
