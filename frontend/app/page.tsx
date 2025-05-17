@@ -66,12 +66,15 @@ export default function Page() {
   }, []);
 
   const handleBuyCredits = async () => {
+    console.log("handleBuyCredits: Function called"); 
     if (!user) {
+      console.log("handleBuyCredits: No user in context, setting payment error."); 
       setPaymentError("Please sign in to buy credits.");
       return;
     }
     setIsProcessingPayment(true);
     setPaymentError(null);
+    console.log("handleBuyCredits: Attempting to fetch /api/payments/create"); 
     try {
       const response = await fetch('/api/payments/create', {
         method: 'POST',
@@ -80,18 +83,46 @@ export default function Page() {
           amount_in_cents: CREDITS_PRICE_CENTS,
           product_description: PRODUCT_DESCRIPTION,
           variable_amount_id: XPAY_VARIABLE_AMOUNT_ID,
-          // userId, userEmail, userName are handled by the API route using authenticated user
         }),
       });
-      const data = await response.json();
-      if (response.ok && data.payment_url) {
-        window.location.href = data.payment_url; // Redirect to XPay
+
+      console.log("handleBuyCredits: Response status from /api/payments/create:", response.status); 
+
+      if (!response.ok) { 
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.log("handleBuyCredits: Error response JSON from /api/payments/create:", errorData); 
+        } catch (e) {
+          console.log("handleBuyCredits: Could not parse error response as JSON from /api/payments/create"); 
+          const textError = await response.text(); 
+          console.log("handleBuyCredits: Error response TEXT from /api/payments/create:", textError); 
+          errorData = { error: `Server error: ${response.status}`, details: textError };
+        }
+        setPaymentError(errorData?.error || `Failed to create payment order. Status: ${response.status}`);
+        setIsProcessingPayment(false);
+        return; 
+      }
+
+      const data = await response.json(); 
+      console.log("handleBuyCredits: Success response JSON from /api/payments/create:", data); 
+
+      if (data.payment_url) {
+        console.log("handleBuyCredits: Redirecting to XPay URL:", data.payment_url); 
+        window.location.href = data.payment_url; 
       } else {
+        console.log("handleBuyCredits: No payment_url in success response from /api/payments/create:", data); 
         setPaymentError(data.error || "Failed to create payment order. Please try again.");
       }
     } catch (error) {
-      console.error("Buy credits error:", error);
-      setPaymentError("An unexpected error occurred. Please try again.");
+      console.error("handleBuyCredits: CATCH block error:", error); 
+      if (error instanceof SyntaxError) {
+          setPaymentError("Error processing server response. Please try again.");
+      } else if (error instanceof Error) {
+          setPaymentError(error.message);
+      } else {
+          setPaymentError("An unexpected client-side error occurred. Please try again.");
+      }
     }
     setIsProcessingPayment(false);
   };
