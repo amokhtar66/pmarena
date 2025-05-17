@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server' // Adjust if your server-side client path is different
+import { cookies } from 'next/headers' // Import cookies
 
 export async function POST(req: Request) {
   try {
+    // Log all available cookies from next/headers
+    const cookieStore = cookies()
+    console.log('API Route /api/payments/create - Cookies received:', JSON.stringify(cookieStore.getAll()))
+    
     const supabase = createClient()
 
     // Optionally, get current authenticated user to ensure only logged-in users can create orders
