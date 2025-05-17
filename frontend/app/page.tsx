@@ -86,24 +86,35 @@ export default function Page() {
         }),
       });
 
-      console.log("handleBuyCredits: Response status from /api/payments/create:", response.status); 
+      console.log("handleBuyCredits: Response status from /api/payments/create:", response.status);
 
-      if (!response.ok) { 
-        let errorData;
+      if (!response.ok) {
+        let errorPayload = { error: `Failed to create payment order. Status: ${response.status}`, details: '' };
         try {
-          errorData = await response.json();
-          console.log("handleBuyCredits: Error response JSON from /api/payments/create:", errorData); 
-        } catch (e) {
-          console.log("handleBuyCredits: Could not parse error response as JSON from /api/payments/create"); 
-          const textError = await response.text(); 
-          console.log("handleBuyCredits: Error response TEXT from /api/payments/create:", textError); 
-          errorData = { error: `Server error: ${response.status}`, details: textError };
+          // Try to read the body ONCE. If it's JSON, parse it. Otherwise, use text.
+          const responseText = await response.text(); // Read as text first
+          console.log("handleBuyCredits: Raw error response text from /api/payments/create:", responseText); 
+          try {
+            const jsonData = JSON.parse(responseText); // Try to parse the text as JSON
+            console.log("handleBuyCredits: Parsed error response JSON from /api/payments/create:", jsonData);
+            errorPayload = { 
+              error: jsonData?.error || `Server error: ${response.status}`,
+              details: jsonData?.details || responseText 
+            };
+          } catch (jsonError) {
+            console.log("handleBuyCredits: Error response was not valid JSON.");
+            errorPayload.details = responseText; // Use the raw text as details
+          }
+        } catch (textReadError) {
+          console.log("handleBuyCredits: Could not read error response text.", textReadError);
+          // errorPayload already has a default status-based message
         }
-        setPaymentError(errorData?.error || `Failed to create payment order. Status: ${response.status}`);
+        setPaymentError(errorPayload.error);
         setIsProcessingPayment(false);
-        return; 
+        return;
       }
 
+      // If response.ok, then expect JSON
       const data = await response.json(); 
       console.log("handleBuyCredits: Success response JSON from /api/payments/create:", data); 
 
