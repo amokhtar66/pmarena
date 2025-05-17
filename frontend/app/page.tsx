@@ -84,6 +84,7 @@ export default function Page() {
           product_description: PRODUCT_DESCRIPTION,
           variable_amount_id: XPAY_VARIABLE_AMOUNT_ID,
         }),
+        credentials: 'include',
       });
 
       console.log("handleBuyCredits: Response status from /api/payments/create:", response.status);
